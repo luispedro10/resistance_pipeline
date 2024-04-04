@@ -1,1 +1,3 @@
 fastq_datos/
+*.fastq
+*.fasta
