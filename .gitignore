@@ -1,3 +1,4 @@
 fastq_datos/
 *.fastq
 *.fasta
+spades_output/

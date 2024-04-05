@@ -1,16 +1,18 @@
 import tkinter as tk
 from tkinter import filedialog, Label, Button, messagebox
 from quality_control import run_fastp
+from assembly import run_spades
+
 
 class GenomeAnalysisApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Genome Analysis Pipeline")
-        self.geometry("400x300")  # Ajusta el tamaño según necesites
+        self.geometry("400x300")  # Tamaño
         self.configure(bg='#f0f0f0')  # Color de fondo de la ventana
 
         self.selected_file = ""  # Variable para almacenar la ruta del archivo seleccionado
-
+        self.protocol("WM_DELETE_WINDOW", self.close_app)
         # Widgets
         self.create_widgets()
 
@@ -20,7 +22,7 @@ class GenomeAnalysisApp(tk.Tk):
                                    pady=10, bg='#f0f0f0', font=('Arial', 12, 'bold'))
         self.welcome_label.pack()
 
-        # Botón para seleccionar archivo FASTA/FASTQ
+        # Boton para seleccionar archivo FASTA/FASTQ
         self.load_button = Button(self, text="Cargar Archivo FASTQ", command=self.load_file,
                                   bg='#333', fg='#fff', font=('Arial', 12, 'bold'), borderwidth=0)
         self.load_button.pack(fill=tk.X, padx=50, pady=10)
@@ -49,13 +51,26 @@ class GenomeAnalysisApp(tk.Tk):
             messagebox.showwarning("Advertencia", "No se ha seleccionado ningún archivo.")
         else:
             try:
-                # Asume que el archivo seleccionado es un FASTQ 
-                output_fastq_clean = "path/to/clean_output.fastq"  
-                output_fastq_report = "path/to/fastp_report.html"
+                output_fastq_clean = "./clean_output.fastq"  
+                output_fastq_report = "./fastp_report.html"
                 run_fastp(self.selected_file, output_fastq_clean, output_fastq_report)
-                messagebox.showinfo("Análisis Completado", "El control de calidad ha finalizado exitosamente.")
+                
+                spades_output_dir = "./spades_output"
+                stdout, stderr, returncode = run_spades(output_fastq_clean, spades_output_dir)
+                
+                if returncode != 0:  # Verificar si hubo un error en SPAdes
+                    messagebox.showerror("Error en SPAdes", f"SPAdes falló con el error: {stderr}")
+                else:
+                    messagebox.showinfo("SPAdes completado", "El ensamblaje con SPAdes ha finalizado exitosamente.")
+                    
             except Exception as e:
                 messagebox.showerror("Error", f"Se produjo un error durante el análisis: {e}")
+                
+                
+    
+    def close_app(self):
+        # Método para cerrar la aplicación
+        self.destroy()
 
 if __name__ == "__main__":
     app = GenomeAnalysisApp()
