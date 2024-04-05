@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, Label, Button, messagebox
 from quality_control import run_fastp
 from assembly import run_spades
+from annotation import run_prokka
 
 
 class GenomeAnalysisApp(tk.Tk):
@@ -51,20 +52,27 @@ class GenomeAnalysisApp(tk.Tk):
             messagebox.showwarning("Advertencia", "No se ha seleccionado ningún archivo.")
         else:
             try:
-                output_fastq_clean = "./clean_output.fastq"  
+                output_fastq_clean = "./clean_output.fastq"
                 output_fastq_report = "./fastp_report.html"
                 run_fastp(self.selected_file, output_fastq_clean, output_fastq_report)
-                
+
                 spades_output_dir = "./spades_output"
                 stdout, stderr, returncode = run_spades(output_fastq_clean, spades_output_dir)
                 
-                if returncode != 0:  # Verificar si hubo un error en SPAdes
-                    messagebox.showerror("Error en SPAdes", f"SPAdes falló con el error: {stderr}")
-                else:
-                    messagebox.showinfo("SPAdes completado", "El ensamblaje con SPAdes ha finalizado exitosamente.")
-                    
+                if returncode != 0:
+                    messagebox.showerror("Error en SPAdes", "SPAdes falló.")
+                    return
+
+                messagebox.showinfo("SPAdes completado", "El ensamblaje con SPAdes ha finalizado exitosamente.")
+                
+                # Nuevo paso: Anotación con Prokka
+                prokka_output_dir = "./prokka_output"
+                run_prokka(spades_output_dir, prokka_output_dir)
+                messagebox.showinfo("Anotación completada", "La anotación con Prokka ha finalizado exitosamente.")
+                
             except Exception as e:
                 messagebox.showerror("Error", f"Se produjo un error durante el análisis: {e}")
+                
                 
                 
     

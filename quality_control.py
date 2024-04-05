@@ -13,6 +13,6 @@ def run_fastp(input_fastq, output_fastq_clean, output_fastq_report):
         '-i', input_fastq,
         '-o', output_fastq_clean,
         '--html', output_fastq_report,
-        '--thread', '4'  # Ajusta el número de hilos según tu CPU
+        '--thread', '4'  # Hilos para cpu.
     ]
     subprocess.run(command, check=True)
