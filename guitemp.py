@@ -10,25 +10,21 @@ from tkinter import ttk
 import sys
 from PyQt5.QtWidgets import QApplication
 from results import ResultsWindow
-import subprocess
 from subprocess import call
 
 class GenomeAnalysisApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Genome Analysis Pipeline")
-        self.geometry("750x480")  # Tamaño
+        self.geometry("700x400")  # Tamaño
         self.configure(bg='#202020')  # Color de fondo de la ventana
         self.selected_file = ""  # Variable para almacenar la ruta del archivo seleccionado
-        self.output_directory = "./"  # Directorio de salida predeterminado
-        self.identity_threshold = tk.StringVar(self)  # Asegúrate de pasar self aquí
-        self.create_widgets()
         self.protocol("WM_DELETE_WINDOW", self.close_app)
-         
+        self.create_widgets()
 
     def create_widgets(self):
         
-        # Crear un Canvas para el fondo del título
+            # Crear un Canvas para el fondo del título
         title_background = tk.Canvas(self, bg='#FFFFFF', height=60)  
         title_background.pack(fill='x', side='top')
 
@@ -36,6 +32,7 @@ class GenomeAnalysisApp(tk.Tk):
 
         # Título en el Canvas centrado
         title_text = "Antimicrobial Resistance Gene Detection Tool"
+
         def create_title(event):
             # Eliminar el objeto de texto anterior si existe
             if self.title_id is not None:
@@ -52,62 +49,36 @@ class GenomeAnalysisApp(tk.Tk):
             )
 
         title_background.bind('<Configure>', create_title)
-        
-        
-        # Botón para comenzar análisis
-        self.start_analysis_button = Button(self, text="Start Analysis", command=self.start_analysis_thread,
-                                            bg='#333', fg='#fff', font=('Arial', 12, 'bold'), relief='flat', borderwidth=0,
-                                            highlightthickness=0, highlightbackground="#333", highlightcolor="#333", height=2, width=20)
-        self.start_analysis_button.pack(expand=False, padx=100, pady=(0,20), side='bottom')
-        
 
+        
         # Texto de progreso
         self.progress_label = Label(self, text="Ready to start...", bg='#202020', fg='#fff', font=('Arial', 12, 'bold'), padx=20, pady=10)
         self.progress_label.pack(side='bottom', fill='x')
-        
         
         # Línea horizontal
         progress_line = tk.Canvas(self, height=2, bg='#555555', highlightthickness=0)
         progress_line.pack(fill='x', padx=20, pady=(0, 10),side='bottom',)
         
-        
-        #Directorio de salida
-        self.select_output_dir_button = Button(self, text="Select Output Directory", command=self.select_output_directory,
-                                               bg='#333', fg='#fff', font=('Arial', 10, 'bold'), relief='flat', borderwidth=0,
-                                               highlightthickness=0, highlightbackground="#333", highlightcolor="#333", height=1, width=25)
-        self.select_output_dir_button.pack(side='bottom',expand=False, padx=100, pady=(10, 15))
-       
-        
-        # Añadir un ComboBox para seleccionar el porcentaje de identidad
-        identity_options = ttk.Combobox(self, textvariable=self.identity_threshold, values=["80%", "85%", "90%", "95%"], state='readonly')
-        identity_options.set("90%")  # Valor por defecto
-        identity_options.pack(side='bottom', pady=(0, 30))
-        
-        identity_label = Label(self, text="Identity Threshold:", bg='#202020', fg='#fff', font=('Arial', 11))
-        identity_label.pack(side='bottom', pady=(0, 0))
+        # Botón para comenzar análisis
+        self.start_analysis_button = Button(self, text="Start Analysis", command=self.start_analysis_thread,
+                                            bg='#333', fg='#fff', font=('Arial', 12, 'bold'), relief='flat', borderwidth=0,
+                                            highlightthickness=0, highlightbackground="#333", highlightcolor="#333", height=2, width=20)
+        self.start_analysis_button.pack(expand=False, padx=100, pady=(0,40), side='bottom')
         
         # Texto de archivo
         self.file_path_label = Label(self, text="No file uploaded.",
                                     pady=10, bg='#202020', fg='#fff', wraplength=300, justify="center", font=('Arial', 11))
-        self.file_path_label.pack(side='bottom',pady=(0,30))
+        self.file_path_label.pack(side='bottom',pady=(0,40))
 
         
         # Botón 1
         self.load_button = Button(self, text="Load FASTQ File", command=self.load_file,
                                 bg='#333', fg='#fff', font=('Arial', 12, 'bold'), relief='flat', borderwidth=0,
                                 highlightthickness=0, highlightbackground="#333", highlightcolor="#333", height=2, width=20)
-        self.load_button.pack(expand=False, padx=100, pady=(0,0),side='bottom')
-        
-        
+        self.load_button.pack(expand=False, padx=100, pady=(50,15),side='bottom')
 
 
 
-    def select_output_directory(self):
-        # Abrir el diálogo para seleccionar el directorio
-        directory = filedialog.askdirectory()
-        if directory:
-            self.output_directory = directory
-            messagebox.showinfo("Output Directory", f"Output directory set to: {directory}")
 
 
     def load_file(self):
@@ -135,14 +106,14 @@ class GenomeAnalysisApp(tk.Tk):
         else:
             try:
                 self.progress_label.config(text="Quality Control started..")
-                output_fastq_clean = f"{self.output_directory}/clean_output.fastq"
-                output_fastq_report = f"{self.output_directory}/fastp_report.html"
+                output_fastq_clean = "./clean_output.fastq"
+                output_fastq_report = "./fastp_report.html"
                 run_fastp(self.selected_file, output_fastq_clean, output_fastq_report)
                 
 
                 # Ensamblaje con SPAdes
                 self.progress_label.config(text="Quality Control finished, Assembly started...")
-                spades_output_dir = f"{self.output_directory}/spades_output"
+                spades_output_dir = "./spades_output"
                 stdout, stderr, returncode = run_spades(output_fastq_clean, spades_output_dir)
                 if returncode != 0:
                     messagebox.showerror("Error en SPAdes", f"SPAdes failed, error: {stderr}")
@@ -151,27 +122,73 @@ class GenomeAnalysisApp(tk.Tk):
                 
                 # Anotacion con Prokka
                 self.progress_label.config(text="Assembly finished. Annotation started...")
-                prokka_output_dir = f"{self.output_directory}/prokka_output"
+                prokka_output_dir = "./prokka_output"
                 run_prokka(spades_output_dir, prokka_output_dir)
                 
                 
                 # Deteccion con rgi
                 self.progress_label.config(text="Annotation finished, looking for genes...")
-                rgi_output_dir = f"{self.output_directory}/rgi_output"
+                rgi_output_dir = "./rgi_output"
                 run_rgi(prokka_output_dir + "/annotated_contigs.fna", rgi_output_dir)  
                 self.progress_label.config(text="Analysis finished succesfully")
                 
-                
-                
-                identity_percent = self.identity_threshold.get().strip('%')  # Obtener el porcentaje sin el símbolo '%'
-                print("Identity Threshold set to:", identity_percent)
-                rgi_output_json_path = f"{self.output_directory}/rgi_output/rgi_output.json"
-                subprocess.Popen(["python", "results.py", rgi_output_json_path, identity_percent])
-                
+                self.show_results(rgi_output_dir + "/rgi_output.json")
+            
             except Exception as e:
                 messagebox.showerror("Error", f"There was an error during the analysis: {e}")
                 
        
+                
+                    
+    def show_results(self, json_file_path):
+        #abre en pestana para mostrar los resultados
+        try:
+            with open(json_file_path, 'r') as file:
+                data = json.load(file)
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not read JSON file: {e}")
+            return
+
+        results_window = tk.Toplevel(self)
+        results_window.title("Results of Antimicrobial Resistant Genes Analysis")
+        results_window.geometry("800x600")
+
+        # Definir el Treeview
+        tree = ttk.Treeview(results_window, columns=("RGI Criteria", "ARO Term", "Detection Criteria", "AMR Gene Family", "Drug Class", "Resistance Mechanism", "% Identity"), show="headings")
+        tree.heading("RGI Criteria", text="RGI Criteria")
+        tree.heading("ARO Term", text="ARO Term")
+        tree.heading("Detection Criteria", text="Detection Criteria")
+        tree.heading("AMR Gene Family", text="AMR Gene Family")
+        tree.heading("Drug Class", text="Drug Class")
+        tree.heading("Resistance Mechanism", text="Resistance Mechanism")
+        tree.heading("% Identity", text="% Identity")
+
+        # Ajustar el ancho de las columnas
+        for col in tree["columns"]:
+            tree.column(col, width=100)
+
+        # Posicionar el Treeview en la ventana
+        tree.pack(expand=True, fill="both")
+
+        # Procesar y anadir los datos al Treeview
+        for key, value in data.items():
+            for sub_key, sub_value in value.items():
+                rgi_criteria = sub_value.get("type_match", "N/A")
+                perc_identity = sub_value.get("perc_identity", 0)  # Asumiendo un valor predeterminado de 0 si no se encuentra
+                partial = sub_value.get("partial", "1")  # Asumiendo "1" como predeterminado para indicar genes parciales
+
+                # Aplicar filtros
+                if rgi_criteria in ["Perfect", "Strict", "Loose"] and partial == "0" and perc_identity >= 90:
+                    # Extracción de la información relevante para cada columna
+                    aro_term = sub_value.get("model_name", "N/A")
+                    detection_criteria = sub_value.get("model_type", "N/A")
+                    # Es necesario iterar por ARO_category para extraer 'AMR Gene Family', 'Drug Class', 'Resistance Mechanism'
+                    amr_gene_family = ", ".join([v.get("category_aro_name", "N/A") for k, v in sub_value.get("ARO_category", {}).items() if "AMR Gene Family" in v.get("category_aro_class_name", "")])
+                    drug_class = ", ".join([v.get("category_aro_name", "N/A") for k, v in sub_value.get("ARO_category", {}).items() if "Drug Class" in v.get("category_aro_class_name", "")])
+                    resistance_mechanism = ", ".join([v.get("category_aro_name", "N/A") for k, v in sub_value.get("ARO_category", {}).items() if "Resistance Mechanism" in v.get("category_aro_class_name", "")])
+
+                    # Insertar los datos que pasan los filtros en el Treeview
+                    tree.insert("", tk.END, values=(rgi_criteria, aro_term, detection_criteria, amr_gene_family, drug_class, resistance_mechanism, perc_identity))
                             
     
     def close_app(self):

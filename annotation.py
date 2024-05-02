@@ -16,3 +16,4 @@ def run_prokka(spades_output_dir, prokka_output_dir):
         contigs_path
     ]
     subprocess.run(command, check=True)
+

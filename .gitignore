@@ -1,5 +1,9 @@
 fastq_datos/
 *.fastq
 *.fasta
+*.json
+*.html
 spades_output/
 prokka_output/
+card-data/
+pruebaoutput/

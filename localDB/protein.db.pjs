@@ -1,0 +1,22 @@
+{
+  "version": "1.2",
+  "dbname": "protein.db",
+  "dbtype": "Protein",
+  "db-version": 5,
+  "description": "/home/luispedro/pipeline/localDB/proteindb.fsa",
+  "number-of-letters": 1655443,
+  "number-of-sequences": 5008,
+  "last-updated": "2024-04-05T15:36:00",
+  "number-of-volumes": 1,
+  "bytes-total": 2474506,
+  "bytes-to-cache": 1700644,
+  "files": [
+    "protein.db.pdb",
+    "protein.db.phr",
+    "protein.db.pin",
+    "protein.db.pot",
+    "protein.db.psq",
+    "protein.db.ptf",
+    "protein.db.pto"
+  ]
+}
