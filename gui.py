@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import QApplication
 from results import ResultsWindow
 import subprocess
 from subprocess import call
+import os
 
 class GenomeAnalysisApp(tk.Tk):
     def __init__(self):
@@ -20,14 +21,14 @@ class GenomeAnalysisApp(tk.Tk):
         self.geometry("750x480")  # Tamaño
         self.configure(bg='#202020')  # Color de fondo de la ventana
         self.selected_file = ""  # Variable para almacenar la ruta del archivo seleccionado
+        self.selected_files = None
         self.output_directory = "./"  # Directorio de salida predeterminado
         self.identity_threshold = tk.StringVar(self)  # Asegúrate de pasar self aquí
         self.create_widgets()
         self.protocol("WM_DELETE_WINDOW", self.close_app)
          
-
-    def create_widgets(self):
-        
+#   WIDGETS
+    def create_widgets(self):  
         # Crear un Canvas para el fondo del título
         title_background = tk.Canvas(self, bg='#FFFFFF', height=60)  
         title_background.pack(fill='x', side='top')
@@ -93,7 +94,7 @@ class GenomeAnalysisApp(tk.Tk):
 
         
         # Botón 1
-        self.load_button = Button(self, text="Load FASTQ File", command=self.load_file,
+        self.load_button = Button(self, text="Load FASTQ File(s)", command=self.load_file,
                                 bg='#333', fg='#fff', font=('Arial', 12, 'bold'), relief='flat', borderwidth=0,
                                 highlightthickness=0, highlightbackground="#333", highlightcolor="#333", height=2, width=20)
         self.load_button.pack(expand=False, padx=100, pady=(0,0),side='bottom')
@@ -101,7 +102,7 @@ class GenomeAnalysisApp(tk.Tk):
         
 
 
-
+#OUTPUT
     def select_output_directory(self):
         # Abrir el diálogo para seleccionar el directorio
         directory = filedialog.askdirectory()
@@ -111,65 +112,118 @@ class GenomeAnalysisApp(tk.Tk):
 
 
     def load_file(self):
-        file_types = [('FASTQ files', '*.fasta *.fa *.fastq *.fq'), ('All files', '*.*')]
-        file_path = filedialog.askopenfilename(filetypes=file_types)
-        if file_path:
-            self.selected_file = file_path
-            self.file_path_label.config(text=f"Archivo Cargado: {file_path}")
+        file_types = [('FASTQ files', '*.fasta *.fa *.fastq *.fq'), ('All files', '*.*')] 
+        file_paths = filedialog.askopenfilenames(filetypes=file_types)  # Note el uso de askopenfilenames
+        if file_paths:
+            if len(file_paths) == 1:
+                self.selected_file = file_paths[0]
+                self.file_path_label.config(text=f"Archivo Cargado: {self.selected_file}")
+            elif len(file_paths) == 2:
+                self.selected_files = file_paths  # Almacenar ambos archivos
+                self.file_path_label.config(text=f"Archivos Cargados: {', '.join(file_paths)}")
+            else:
+                messagebox.showerror("Error", "Please select one or two FASTQ files.")
+                self.selected_file = ""
+                self.selected_files = None
         else:
             self.selected_file = ""
-            
+            self.selected_files = None
+                
           
             
     def start_analysis_thread(self):
         # Iniciar el análisis en un hilo separado para evitar bloquear la GUI
         analysis_thread = threading.Thread(target=self.start_analysis)
         analysis_thread.start()
-            
-            
+     
+     
+     #KRAKEN       
+    def run_kraken2(self, input_file, output_directory, database_path):
+        kraken_output_dir = os.path.join(output_directory, "kraken_output")
+        os.makedirs(kraken_output_dir, exist_ok=True)  # Asegura que el directorio existe
+        
+        output_file = os.path.join(kraken_output_dir, "kraken_report.txt")
+        classified_out = os.path.join(kraken_output_dir, "classified_reads.fastq")
+        unclassified_out = os.path.join(kraken_output_dir, "unclassified_reads.fastq")
+        kraken_summary = os.path.join(kraken_output_dir, "kraken_summary.txt")
+
+        command = [
+            'kraken2',
+            '--db', database_path,
+            '--output', output_file,
+            '--report', kraken_summary,
+            '--classified-out', classified_out,
+            '--unclassified-out', unclassified_out,
+            input_file
+        ]
+        subprocess.run(command, check=True)
+        print(f"Kraken2 analysis completed. Reports and reads saved to {kraken_output_dir}") 
             
             
     def start_analysis(self):
-        if not self.selected_file:
+        if not self.selected_files and not self.selected_file:
             self.progress_label.config(text="Warning: No file selected")
-        else:
-            try:
-                self.progress_label.config(text="Quality Control started..")
+            return  # Regresar si no hay archivos seleccionados
+
+        try:
+            
+            #FASTP AND SPADES
+            self.progress_label.config(text="Quality Control started..")
+            if self.selected_files and len(self.selected_files) == 2:  # Si se seleccionaron dos archivos
+                input_fastq1, input_fastq2 = self.selected_files
+                output_fastq_clean1 = f"{self.output_directory}/clean_output_R1.fastq"
+                output_fastq_clean2 = f"{self.output_directory}/clean_output_R2.fastq"
+                output_fastq_report = f"{self.output_directory}/fastp_report.html"
+                run_fastp(input_fastq1, output_fastq_clean1, output_fastq_report, input_fastq2, output_fastq_clean2)
+
+                # Ensamblaje con SPAdes para lecturas pareadas
+                self.progress_label.config(text="Quality Control finished, Assembly started...")
+                spades_output_dir = f"{self.output_directory}/spades_output"
+                stdout, stderr, returncode = run_spades(output_fastq_clean1, spades_output_dir, output_fastq_clean2)
+            else:  # Si solo se seleccionó un archivo
                 output_fastq_clean = f"{self.output_directory}/clean_output.fastq"
                 output_fastq_report = f"{self.output_directory}/fastp_report.html"
                 run_fastp(self.selected_file, output_fastq_clean, output_fastq_report)
-                
 
-                # Ensamblaje con SPAdes
+                # Ensamblaje con SPAdes para una sola lectura
                 self.progress_label.config(text="Quality Control finished, Assembly started...")
                 spades_output_dir = f"{self.output_directory}/spades_output"
                 stdout, stderr, returncode = run_spades(output_fastq_clean, spades_output_dir)
-                if returncode != 0:
-                    messagebox.showerror("Error en SPAdes", f"SPAdes failed, error: {stderr}")
-                    return
-                
-                
-                # Anotacion con Prokka
-                self.progress_label.config(text="Assembly finished. Annotation started...")
-                prokka_output_dir = f"{self.output_directory}/prokka_output"
-                run_prokka(spades_output_dir, prokka_output_dir)
-                
-                
-                # Deteccion con rgi
-                self.progress_label.config(text="Annotation finished, looking for genes...")
-                rgi_output_dir = f"{self.output_directory}/rgi_output"
-                run_rgi(prokka_output_dir + "/annotated_contigs.fna", rgi_output_dir)  
-                self.progress_label.config(text="Analysis finished succesfully")
-                
-                
-                
-                identity_percent = self.identity_threshold.get().strip('%')  # Obtener el porcentaje sin el símbolo '%'
-                print("Identity Threshold set to:", identity_percent)
-                rgi_output_json_path = f"{self.output_directory}/rgi_output/rgi_output.json"
-                subprocess.Popen(["python", "results.py", rgi_output_json_path, identity_percent])
-                
-            except Exception as e:
-                messagebox.showerror("Error", f"There was an error during the analysis: {e}")
+            
+            if returncode != 0:
+                messagebox.showerror("Error en SPAdes", f"SPAdes failed, error: {stderr}")
+                return
+            
+            
+            #Kraken
+            kraken_db_path = "./kraken"
+            self.progress_label.config(text="Assembly finished. Running genomic classification analysis...")
+            self.run_kraken2(f"{spades_output_dir}/contigs.fasta", self.output_directory, kraken_db_path)
+            
+            
+            
+            # Anotación con Prokka
+            self.progress_label.config(text="Genomic classification analysis finished. Annotation started...")
+            prokka_output_dir = f"{self.output_directory}/prokka_output"
+            run_prokka(spades_output_dir, prokka_output_dir)
+            
+            
+            
+            # Detección con RGI
+            self.progress_label.config(text="Annotation finished, looking for genes...")
+            rgi_output_dir = f"{self.output_directory}/rgi_output"
+            run_rgi(prokka_output_dir + "/annotated_contigs.fna", rgi_output_dir)  
+            self.progress_label.config(text="Analysis finished successfully")
+            
+            identity_percent = self.identity_threshold.get().strip('%')
+            print("Identity Threshold set to:", identity_percent)
+            rgi_output_json_path = f"{self.output_directory}/rgi_output/rgi_output.json"
+            subprocess.Popen(["python", "results.py", rgi_output_json_path, identity_percent])
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"There was an error during the analysis: {e}")
+
+
                 
        
                             
